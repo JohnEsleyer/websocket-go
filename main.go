@@ -2,43 +2,43 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
-func main() {
-	http.HandleFunc("/ws", wsHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
-
-func wsHandler(w http.ResponseWriter, r *http.Request) {
+func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		fmt.Println("Error upgrading connection:", err)
 		return
 	}
 	defer conn.Close()
 
 	for {
-		messageType, message, err := conn.ReadMessage()
+		messageType, p, err := conn.ReadMessage()
 		if err != nil {
-			log.Println(err)
+			fmt.Println("Error reading message:", err)
 			return
 		}
-		fmt.Println("Received message:", string(message))
 
-		err = conn.WriteMessage(messageType, message)
-		if err != nil {
-			log.Println(err)
+		fmt.Printf("Received message: %s\n", p)
+
+		if err := conn.WriteMessage(messageType, p); err != nil {
+			fmt.Println("Error writing message:", err)
 			return
 		}
 	}
+}
 
+func main() {
+	http.HandleFunc("/ws", handleWebSocket)
+	fmt.Println("WebSocket server is running on :8080...")
+	http.ListenAndServe(":8080", nil)
 }
